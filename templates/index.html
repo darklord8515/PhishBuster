@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PhishBuster</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    body {
+      background: #0f1112;
+      color: #39ff14;
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    .matrix-bg {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .cyber-card {
+      background: rgba(20,22,34,0.92);
+      border: 2px solid #00cafb;
+      border-radius: 12px;
+      box-shadow: 0 0 32px #0ff9, 0 0 4px #00cafb;
+      padding: 2em 2em 1.5em 2em;
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+      z-index: 1;
+      position: relative;
+    }
+    h1 {
+      font-size: 2em;
+      color: #00cafb;
+      text-shadow: 0 0 8px #0ff9, 0 0 2px #00cafb;
+      letter-spacing: 2px;
+      margin-bottom: 1.2em;
+    }
+    .cyber-input, select {
+      background: #222c33;
+      color: #39ff14;
+      border: 1.5px solid #39ff14;
+      border-radius: 6px;
+      padding: 0.75em 1em;
+      font-size: 1em;
+      width: 90%;
+      outline: none;
+      margin-bottom: 1em;
+      box-shadow: 0 0 6px #39ff1444;
+      transition: border 0.2s, box-shadow 0.2s;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .cyber-input:focus, select:focus {
+      border-color: #00cafb;
+      box-shadow: 0 0 16px #00cafb44;
+    }
+    .cyber-btn {
+      background: linear-gradient(90deg, #00cafb, #39ff14);
+      color: #11161c;
+      border: none;
+      border-radius: 6px;
+      padding: 0.8em 2em;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 12px #00cafb88;
+      letter-spacing: 1px;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .cyber-btn:hover {
+      background: linear-gradient(90deg, #39ff14, #00cafb);
+      color: #0f0f0f;
+      box-shadow: 0 0 24px #39ff14aa;
+    }
+    .result-safe {
+      background: #0c2e0c;
+      color: #39ff14;
+      border: 2px solid #39ff14;
+      border-radius: 8px;
+      margin-top: 1.2em;
+      padding: 1em;
+      font-size: 1.07em;
+      box-shadow: 0 0 8px #39ff1466;
+      animation: fadeIn 0.6s;
+    }
+    .result-phishing {
+      background: #2e0c0c;
+      color: #ff1744;
+      border: 2px solid #ff1744;
+      border-radius: 8px;
+      margin-top: 1.2em;
+      padding: 1em;
+      font-size: 1.07em;
+      box-shadow: 0 0 8px #ff174466;
+      animation: shake 0.4s, fadeIn 0.6s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes shake {
+      0% { transform: translateX(0px);}
+      20% { transform: translateX(-6px);}
+      40% { transform: translateX(6px);}
+      60% { transform: translateX(-4px);}
+      80% { transform: translateX(4px);}
+      100% { transform: translateX(0px);}
+    }
+    @media (max-width: 500px) {
+      .cyber-card {
+        padding: 1em;
+        max-width: 98vw;
+      }
+      h1 {
+        font-size: 1.3em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas class="matrix-bg"></canvas>
+  <div class="cyber-card">
+    <h1 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px;" />
+  PhishBuster
+</h1>
+    
+    <p style="color:#00cafb; margin-bottom:1.5em;">
+      Detect phishing URLs and emails with advanced AI analysis.<br>
+    <p>Paste a suspicious URL or email text below:</p>
+    <form id="checker-form" autocomplete="off">
+      <select name="inputType" id="inputType" required>
+        <option value="url" selected>Check a URL</option>
+        <option value="email">Check Email Text</option>
+      </select>
+      <input type="text" class="cyber-input" name="url" id="urlInput" placeholder="Paste suspicious URL here...">
+      <textarea class="cyber-input" name="email" id="emailInput" rows="4" placeholder="Paste suspicious email text here..." style="display:none;"></textarea>
+      <br>
+      <button class="cyber-btn" type="submit">Analyze</button>
+    </form>
+    <div id="resultArea"></div>
+  </div>
+  <script>
+    // Matrix rain effect
+    const canvas = document.querySelector('.matrix-bg');
+    const ctx = canvas.getContext('2d');
+
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    let cols = Math.floor(w / 20);
+    let ypos = Array(cols).fill(0);
+
+    const matrixChars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズヅブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
+
+    function matrix() {
+      ctx.fillStyle = 'rgba(15, 17, 18, 0.20)';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.font = '18px Share Tech Mono, monospace';
+      for (let i = 0; i < cols; i++) {
+        let text = matrixChars.charAt(Math.floor(Math.random() * matrixChars.length));
+        ctx.fillStyle = '#39ff14';
+        ctx.shadowColor = '#39ff14';
+        ctx.shadowBlur = 8;
+        ctx.fillText(text, i * 20, ypos[i] * 20);
+
+        if (Math.random() > 0.975) ypos[i] = 0;
+        else ypos[i]++;
+      }
+      ctx.shadowBlur = 0;
+    }
+    setInterval(matrix, 60);
+
+    window.addEventListener('resize', () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+      cols = Math.floor(w / 20);
+      ypos = Array(cols).fill(0);
+    });
+
+    // Toggle input fields based on selection
+    const select = document.getElementById('inputType');
+    const urlInput = document.getElementById('urlInput');
+    const emailInput = document.getElementById('emailInput');
+    function toggleFields() {
+      if (select.value === 'url') {
+        urlInput.style.display = '';
+        urlInput.required = true;
+        emailInput.style.display = 'none';
+        emailInput.required = false;
+      } else {
+        urlInput.style.display = 'none';
+        urlInput.required = false;
+        emailInput.style.display = '';
+        emailInput.required = true;
+      }
+    }
+    select.addEventListener('change', toggleFields);
+    document.addEventListener('DOMContentLoaded', toggleFields);
+
+    // AJAX form submit
+    const form = document.getElementById('checker-form');
+    const resultArea = document.getElementById('resultArea');
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      resultArea.innerHTML = ''; // clear previous
+
+      const inputType = select.value;
+      const url = urlInput.value.trim();
+      const email = emailInput.value.trim();
+
+      const response = await fetch('/api/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inputType: inputType,
+          url: url,
+          email: email
+        })
+      });
+      const data = await response.json();
+
+      let html = '';
+      if (data.result === "Safe") {
+        html = `<div class="result-safe">${data.explanation}</div>`;
+      } else if (data.result === "Phishing" || data.result === "Error") {
+        html = `<div class="result-phishing">${data.explanation}</div>`;
+      }
+      resultArea.innerHTML = html;
+    });
+  </script>
+</body>
+</html>
